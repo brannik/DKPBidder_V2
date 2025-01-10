@@ -1,0 +1,16 @@
+## Interface: 30300
+## Title: DKPBidder_V2
+## Notes: A DKP bidding addon for World of Warcraft 3.3.5a
+## Version: 2.0
+## Author: Agset
+## Dependencies: LibStub
+## SavedVariables: DKP_Config,DKP_HistoryData,DKP_BackupData
+
+## Files:
+core.lua
+dkpui.lua
+historyui.lua
+minimapicon.lua
+optionsui.lua
+rollui.lua
+charframetext.lua
