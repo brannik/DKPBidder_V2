@@ -503,7 +503,7 @@ function DKP_BID_UI.UpdateUI()
     if DKP_BID_UI.ongoingBid == false then
         
         overlay:Show()
-        --DKP_ADDON_CORE.GatherDKP()
+        DKP_ADDON_CORE.GatherDKP(false)
         text2:SetText("Your DKP is: " .. DKP_ADDON_CORE.DkpAmount)
     else
         overlay:Hide()
@@ -549,7 +549,7 @@ end
 
 local function OnFrameShow(self)
     DKP_BID_UI.frameVisible = true
-    --DKP_ADDON_CORE.GatherDKP()
+    DKP_ADDON_CORE.GatherDKP(false)
     DKP_BID_UI.registerRaidWarningListener()
     DKP_BID_UI.updateBidButton()
     DKP_BID_UI.ongoingBid = false

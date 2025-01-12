@@ -50,6 +50,9 @@ function DKPBidder_Minimap:CreateButton()
                 HISTORY_UI.Show()
             end,
             function()
+                DKP_ADDON_CORE.GatherDKP(true)
+            end,
+            function()
                 DKP_OPTIONS_UI.Show()
             end
         )
@@ -60,14 +63,14 @@ function DKPBidder_Minimap:CreateButton()
 end
 
 -- Show the menu with four buttons
-function DKPBidder_Minimap.showTooltipMenu(onDKPClick, onRollClick, onHistoryClick, onOptionsClick)
+function DKPBidder_Minimap.showTooltipMenu(onDKPClick, onRollClick, onHistoryClick,onManualClick, onOptionsClick)
     if DKPBidder_Minimap.tooltipMenu then
         DKPBidder_Minimap.tooltipMenu:Hide() -- Hide any existing menu
     end
 
     local menu = CreateFrame("Frame", "DKPBidderTooltipMenu", UIParent)
     DKPBidder_Minimap.tooltipMenu = menu
-    menu:SetSize(120, 160) -- Adjust size to fit all buttons
+    menu:SetSize(160, 150) -- Adjust size to fit all buttons
 
     local x, y = GetCursorPosition()
     local uiScale = UIParent:GetEffectiveScale()
@@ -83,7 +86,7 @@ function DKPBidder_Minimap.showTooltipMenu(onDKPClick, onRollClick, onHistoryCli
 
     local function createMenuButton(text, onClick, yOffset)
         local button = CreateFrame("Button", nil, menu, "UIPanelButtonTemplate")
-        button:SetSize(100, 20)
+        button:SetSize(140, 20)
         button:SetPoint("TOP", menu, "TOP", 0, yOffset)
         button:SetText(text)
         button:SetScript("OnClick", function()
@@ -94,12 +97,13 @@ function DKPBidder_Minimap.showTooltipMenu(onDKPClick, onRollClick, onHistoryCli
     end
 
     createMenuButton("DKP", onDKPClick, -10)
-    createMenuButton("Roll", onRollClick, -40)
-    createMenuButton("History", onHistoryClick, -70)
-    createMenuButton("Options", onOptionsClick, -100)
+    createMenuButton("Roll", onRollClick, -30)
+    createMenuButton("History", onHistoryClick, -50)
+    createMenuButton("Manual refresh DKP", onManualClick, -70)
+    createMenuButton("Options", onOptionsClick, -90)
 
     local closeButton = CreateFrame("Button", nil, menu, "UIPanelButtonTemplate")
-    closeButton:SetSize(100, 20)
+    closeButton:SetSize(140, 20)
     closeButton:SetPoint("BOTTOM", menu, "BOTTOM", 0, 10)
     closeButton:SetText("Close")
     closeButton:SetScript("OnClick", function()

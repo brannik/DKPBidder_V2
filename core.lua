@@ -169,8 +169,10 @@ DKP_ADDON_CORE.EVENT_FRAME:SetScript("OnEvent", function(self, event, arg1)
             DKP_ADDON_CORE.guildName = guildName
             DKP_ADDON_CORE.LoadConfig()
             DKP_ADDON_CORE.LoadGuildRanks()
+            DKP_ADDON_CORE.RestoreDKP()
             DKP_ADDON_CORE.GatherDKP()
             DKP_ADDON_CORE.LoadRaidHistory()
+            CHAR_FRAME.UpdateText(DKP_ADDON_CORE.DkpAmount)
         end)
     elseif event == "GROUP_ROSTER_UPDATE" then
         DKP_ADDON_CORE.HandleRaidChange()
@@ -224,7 +226,6 @@ function DKP_ADDON_CORE.FirstOnlineOfficer()
         for _, rank in ipairs(DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].officerRanks) do
             if rank == rankName and isOnline then
                 officername = name
-                
                 break
             end
         end
@@ -254,6 +255,7 @@ function DKP_ADDON_CORE.RequestDKPFromOfficer(officerName)
                     DKP_ADDON_CORE.DkpAmount = 0
                 end
                 CHAR_FRAME.UpdateText(DKP_ADDON_CORE.DkpAmount)
+                DKP_ADDON_CORE.BackupTheDKP(DKP_ADDON_CORE.DkpAmount)
             end
         end
     end
@@ -274,6 +276,7 @@ function DKP_ADDON_CORE.RequestDKPFromOfficer(officerName)
             self:Hide()
         end
     end)
+    
     delayFrame:Show()  -- Start the OnUpdate handler
 end
 
@@ -317,7 +320,8 @@ function GetDkpFromNote(note)
     
 end
 
-function DKP_ADDON_CORE.GatherDKP()
+function DKP_ADDON_CORE.GatherDKP(manual)
+    manual = manual or false
     if not IsInGuild() then
         DKP_ADDON_CORE.DkpAmount = 0
     end
@@ -343,9 +347,34 @@ function DKP_ADDON_CORE.GatherDKP()
                 end
             end
         else
-            local officerName = DKP_ADDON_CORE.FirstOnlineOfficer()
-            DKP_ADDON_CORE.RequestDKPFromOfficer(officerName)
+            DKP_ADDON_CORE.RestoreDKP()
+            if manual then
+                local officerName = DKP_ADDON_CORE.FirstOnlineOfficer()
+                DKP_ADDON_CORE.RequestDKPFromOfficer(officerName)
+            else
+                if DKP_ADDON_CORE.DkpAmount == 0 then
+                    local officerName = DKP_ADDON_CORE.FirstOnlineOfficer()
+                    DKP_ADDON_CORE.RequestDKPFromOfficer(officerName)
+                end
+            end
+            
         end
+    end
+    
+end
+function DKP_ADDON_CORE.BackupTheDKP(amount)
+    if not DKP_BackupData then
+        DKP_BackupData = {}
+    end
+
+    DKP_BackupData[DKP_ADDON_CORE.guildName] = amount
+end
+function DKP_ADDON_CORE.RestoreDKP()
+    if DKP_BackupData and DKP_BackupData[DKP_ADDON_CORE.guildName] then
+        DKP_ADDON_CORE.DkpAmount =  DKP_BackupData[DKP_ADDON_CORE.guildName]
+    else
+        print("No data found for guild: " .. DKP_ADDON_CORE.guildName)
+        return nil
     end
 end
 
