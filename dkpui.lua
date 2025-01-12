@@ -4,6 +4,7 @@ DKP_BID_UI.currentDKPvar = ""
 DKP_BID_UI.currentBid = { player = "", amount = 0 }
 DKP_BID_UI.ongoingBid = false
 DKP_BID_UI.dkpAmount = 0
+DKP_BID_UI.frameVisible = false
 
 local frame = CreateFrame("Frame", "DKPBidderFrame", UIParent)
 frame:SetSize(300, 420)
@@ -333,7 +334,7 @@ itemSlot:SetScript("OnLeave", function(self)
 end)
 -- fix
 function DKP_BID_UI.onRaidWarningMessage(self, event, message, sender)
-    local startBidRegex = DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName] and DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].startBidRegex or "Bidding for (.+) started."
+    local startBidRegex = REGEX.regex.startBidRegex or "Bidding for (.+) started."
     local itemLink = message:match(startBidRegex)
     if itemLink then
         DKP_BID_UI.updateItemSlot(itemLink)
@@ -347,7 +348,8 @@ function DKP_BID_UI.onRaidWarningMessage(self, event, message, sender)
 end
 
 function DKP_BID_UI.onRaidMessage(self, event, message, sender)
-    local stopBidRegex = DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName] and DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].stopBidRegex or ".+ has been cancelled."
+    local stopBidRegex = REGEX.regex.stopBidRegex or ".+ has been cancelled."
+    local wonBidRegex = REGEX.regex.wonBidRegex or "won regex"
     if message:match(stopBidRegex) and sender == DKP_BID_UI.bidStarter then
         DKP_BID_UI.resetItemSlot()
         DKP_BID_UI.ongoingBid = false
@@ -358,6 +360,13 @@ function DKP_BID_UI.onRaidMessage(self, event, message, sender)
             DKP_BID_UI.currentBid = { player = sender, amount = bidAmount }
             DKP_BID_UI.updateMessageText(sender .. " - " .. bidAmount)
         end
+    elseif message:match(wonBidRegex) then
+        print("Item sold")
+        --DKP_ADDON_CORE.GatherDKP()
+        DKP_ADDON_CORE.AddItemLog("playername","itemlink","DKP","amount") -- fix here
+        DKP_BID_UI.resetItemSlot()
+        DKP_BID_UI.ongoingBid = false
+        DKP_BID_UI.UpdateUI()
     end
     DKP_BID_UI.UpdateUI()
 end
@@ -492,11 +501,16 @@ end
 
 function DKP_BID_UI.UpdateUI()
     if DKP_BID_UI.ongoingBid == false then
+        
         overlay:Show()
+        --DKP_ADDON_CORE.GatherDKP()
+        text2:SetText("Your DKP is: " .. DKP_ADDON_CORE.DkpAmount)
     else
         overlay:Hide()
     end
 end
+
+
 
 function DKP_BID_UI.registerRaidWarningListener()
     if not DKP_BID_UI.raidWarningFrame then
@@ -516,14 +530,26 @@ end
 
 function DKP_BID_UI.unregisterRaidWarningListener()
     if DKP_BID_UI.raidWarningFrame then
+        -- Unregister all events attached to the frame
         DKP_BID_UI.raidWarningFrame:UnregisterEvent("CHAT_MSG_RAID_WARNING")
         DKP_BID_UI.raidWarningFrame:UnregisterEvent("CHAT_MSG_RAID")
         DKP_BID_UI.raidWarningFrame:UnregisterEvent("CHAT_MSG_RAID_LEADER")
+
+        -- Remove any scripts attached to the frame
+        DKP_BID_UI.raidWarningFrame:SetScript("OnEvent", nil)
+        DKP_BID_UI.raidWarningFrame:SetScript("OnUpdate", nil)
+
+        -- Hide and clear the frame
+        DKP_BID_UI.raidWarningFrame:Hide()
+
+        -- Explicitly release the frame for garbage collection
+        DKP_BID_UI.raidWarningFrame = nil
     end
 end
 
 local function OnFrameShow(self)
-    DKP_ADDON_CORE.GatherDKP()
+    DKP_BID_UI.frameVisible = true
+    --DKP_ADDON_CORE.GatherDKP()
     DKP_BID_UI.registerRaidWarningListener()
     DKP_BID_UI.updateBidButton()
     DKP_BID_UI.ongoingBid = false
@@ -532,6 +558,7 @@ end
 
 -- Event handler function for OnHide
 local function OnFrameHide(self)
+    DKP_BID_UI.frameVisible = false
     DKP_BID_UI.unregisterRaidWarningListener()
 end
 
@@ -542,10 +569,10 @@ frame:SetScript("OnHide", OnFrameHide)
 function DKP_BID_UI.Show()
     if tonumber(DKP_ADDON_CORE.DkpAmount) then
         DKPAmount:SetText("Your net " .. DKP_ADDON_CORE.DkpAmount .. " DKP")
-        text2:SetText("Your DKP is: " .. DKP_ADDON_CORE.DkpAmount)
     else
         DKPAmount:SetText(DKP_ADDON_CORE.DkpAmount)
     end
+    DKP_BID_UI.registerRaidWarningListener()
     DKP_BID_UI.UpdateUI()
     frame:Show()
 end

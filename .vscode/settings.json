@@ -28,7 +28,9 @@
         "PaperDollFrame",
         "ReloadUI",
         "message",
-        "ADD"
+        "ADD",
+        "ROLL",
+        "DK"
     ],
     "Lua.diagnostics.disable": [
         "param-type-mismatch",

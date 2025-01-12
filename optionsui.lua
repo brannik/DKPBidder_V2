@@ -351,14 +351,6 @@ saveButton:SetScript("OnClick", function()
     DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].minDkpBid = tonumber(bidAmountEditBox:GetText()) or 10  -- Get bid amount
     DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].showDkpInCharacterFrame = showDkpInCharFrame:GetChecked()  -- Get checkbox state
     DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].smallFrame = smallFrame:GetChecked()  -- Get checkbox state
-
-    DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].startBidRegex = DKP_ADDON_CORE.defaultConfig["DefaultGuild"].startBidRegex
-    DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].stopBidRegex = DKP_ADDON_CORE.defaultConfig["DefaultGuild"].stopBidRegex
-    DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].startRollRegex = DKP_ADDON_CORE.defaultConfig["DefaultGuild"].startRollRegex
-    DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].stopRollRegex = DKP_ADDON_CORE.defaultConfig["DefaultGuild"].stopRollRegex
-    DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].noteRegexDkp = DKP_ADDON_CORE.defaultConfig["DefaultGuild"].noteRegexDkp
-    DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].noteRegexName = DKP_ADDON_CORE.defaultConfig["DefaultGuild"].noteRegexName
-    DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].msgRegex = DKP_ADDON_CORE.defaultConfig["DefaultGuild"].msgRegex
     
     DKP_ADDON_CORE.SaveConfig()
 end)

@@ -1,6 +1,6 @@
 ## Interface: 30300
-## Title: DKPBidder_V2
-## Notes: A DKP bidding addon for World of Warcraft 3.3.5a
+## Title: Loot Tracker
+## Notes: Loot distribution tracker
 ## Version: 2.0
 ## Author: Agset
 ## Dependencies: LibStub
@@ -14,3 +14,4 @@ minimapicon.lua
 optionsui.lua
 rollui.lua
 charframetext.lua
+regex.lua
