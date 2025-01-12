@@ -352,7 +352,7 @@ function DKP_ADDON_CORE.GatherDKP(manual)
                 local officerName = DKP_ADDON_CORE.FirstOnlineOfficer()
                 DKP_ADDON_CORE.RequestDKPFromOfficer(officerName)
             else
-                if DKP_ADDON_CORE.DkpAmount == 0 then
+                if DKP_ADDON_CORE.DkpAmount == nil then
                     local officerName = DKP_ADDON_CORE.FirstOnlineOfficer()
                     DKP_ADDON_CORE.RequestDKPFromOfficer(officerName)
                 end
@@ -362,20 +362,89 @@ function DKP_ADDON_CORE.GatherDKP(manual)
     end
     
 end
+
+DKP_BackupData = DKP_BackupData or {}
+local backupCounter = 0  -- Initialize the backup counter
+
+-- Function to get the next available backup counter
+local function GetNextBackupCounter()
+    -- Check if there's a saved counter in the backup data
+    if DKP_BackupData and DKP_BackupData.counter then
+        return DKP_BackupData.counter + 1  -- Return the next available counter
+    end
+    return 1  -- If no counter exists, start from 1
+end
+
+-- Function to manually add or update a record in the backup
 function DKP_ADDON_CORE.BackupTheDKP(amount)
-    if not DKP_BackupData then
-        DKP_BackupData = {}
+    -- Get the guild name
+    --local guildName = DKP_ADDON_CORE.guildName
+    if not DKP_ADDON_CORE.guildName then
+        print("Guild name is not set.")
+        return
     end
 
-    DKP_BackupData[DKP_ADDON_CORE.guildName] = amount
-end
-function DKP_ADDON_CORE.RestoreDKP()
-    if DKP_BackupData and DKP_BackupData[DKP_ADDON_CORE.guildName] then
-        DKP_ADDON_CORE.DkpAmount =  DKP_BackupData[DKP_ADDON_CORE.guildName]
-    else
-        print("No data found for guild: " .. DKP_ADDON_CORE.guildName)
-        return nil
+    -- Check if the guild already has an existing record
+    local existingBackupKey = nil
+    for key, data in pairs(DKP_BackupData) do
+        if type(data) == "table" and data.guildName == DKP_ADDON_CORE.guildName then
+            -- Found an existing record, mark the key to update it
+            existingBackupKey = key
+            break
+        end
     end
+
+    -- If an existing backup record is found, update the DKP value
+    if existingBackupKey then
+        DKP_BackupData[existingBackupKey].DKP = amount
+        print("Updated backup for guild '" .. DKP_ADDON_CORE.guildName .. "' to " .. amount .. " DKP.")
+    else
+        -- Increment the counter to ensure each record has a unique key
+        backupCounter = GetNextBackupCounter()
+
+        -- Store the backup data with a unique number as the key
+        DKP_BackupData[backupCounter] = {guildName = DKP_ADDON_CORE.guildName, DKP = amount}
+
+        -- Update the counter in the saved data
+        DKP_BackupData.counter = backupCounter
+
+        --print("Backup for guild '" .. DKP_ADDON_CORE.guildName .. "' set to " .. amount .. " DKP with record number " .. backupCounter)
+    end
+end
+
+-- Function to restore the DKP for the current guild
+function DKP_ADDON_CORE.RestoreDKP()
+    local guildName = DKP_ADDON_CORE.guildName
+    local restored = false
+
+    -- Search through all the records in DKP_BackupData to find the most recent backup for the guild
+    for key, data in pairs(DKP_BackupData) do
+        -- Make sure we're looking at the data within the table (not the key)
+        if type(data) == "table" and data.guildName == guildName then
+            -- Restore the stored DKP amount from the inner table
+            local dkpAmount = data.DKP
+            --print("Restored " .. dkpAmount .. " DKP for guild " .. guildName)
+            DKP_ADDON_CORE.DkpAmount = dkpAmount
+            restored = true
+            break
+        end
+    end
+
+    if not restored then
+        print("No backup found for guild: " .. guildName)
+    end
+end
+
+function DKP_ADDON_CORE.DebugBackup(guildName, dkpAmount)
+    DKP_ADDON_CORE.guildName = guildName
+    if not guildName or not dkpAmount then
+        print("Error: Guild name or DKP amount is missing.")
+        return
+    end
+
+    -- Call the BackupTheDKP function with the provided guildName and dkpAmount
+    DKP_ADDON_CORE.BackupTheDKP(dkpAmount)
+    print("Debug: Backup for guild '" .. guildName .. "' set to " .. dkpAmount .. " DKP.")
 end
 
 function DKP_ADDON_CORE.SaveRaidHistory()
