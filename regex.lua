@@ -4,7 +4,7 @@ REGEX.regex = {
     startBidRegex = "Bidding for (.+) started.",
     stopBidRegex = "(.+) has been cancelled.",
     wonBidRegex = "[Pp]urchases%s+(.+)",
-    startRollRegex = "roll%s+(ms%s+)?(|c%x%x%x%x%x%x%x%x|Hitem:.+|h%[.+%]|h|r)", -- fix the regex
+    startRollRegex = "^([Rr][Oo][Ll]{1,2})?(%s+)?(([Mm][Ss])?([Oo][Ss])?([Dd][Ee])?){1}(%s+)(.+)", -- fix the regex
     stopRollRegex = "stoproll",
     wonRollRegex = "wonroll",
     noteRegexDkp = "[Nn]et:%s*(%d+)",
@@ -12,4 +12,3 @@ REGEX.regex = {
     msgRegex = "You have%s+(%d+)%s+DKP",
     msgregexTwo = "Your new net DKP amount is%s+(%d+)"
 }
-
