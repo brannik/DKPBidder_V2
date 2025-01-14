@@ -248,7 +248,7 @@ function DKP_ADDON_CORE.RequestDKPFromOfficer(officerName)
             -- Ensure the sender is the officer and the message is not sent by you
             if sender == officerName then
                 -- Match and extract DKP from the message
-                local dkp = string.match(message, DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].msgRegex)
+                local dkp = string.match(message, REGEX.regex.msgRegex)
                 if dkp then
                     DKP_ADDON_CORE.DkpAmount = tonumber(dkp)
                 else
@@ -320,8 +320,8 @@ function GetDkpFromNote(note)
     
 end
 
-function DKP_ADDON_CORE.GatherDKP(manual)
-    manual = manual or false
+function DKP_ADDON_CORE.GatherDKP(manualCheck)
+    local manual = manualCheck or false
     if not IsInGuild() then
         DKP_ADDON_CORE.DkpAmount = 0
     end

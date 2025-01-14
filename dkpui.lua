@@ -504,7 +504,12 @@ function DKP_BID_UI.UpdateUI()
         
         overlay:Show()
         DKP_ADDON_CORE.GatherDKP(false)
-        text2:SetText("Your DKP is: " .. DKP_ADDON_CORE.DkpAmount)
+        if(DKP_ADDON_CORE.DkpAmount == nil) then
+            text2:SetText("Your DKP is: " .. 0)
+        else
+            text2:SetText("Your DKP is: " .. DKP_ADDON_CORE.DkpAmount)
+        end
+        
     else
         overlay:Hide()
     end
