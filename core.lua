@@ -234,7 +234,14 @@ local function addItemLinkTooltip(msg)
     end)
 end
 local function GetPlayerDKP(playerName)
-    if DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName] and DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].isOfficerNoteVisible then
+    if DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName] and DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].dkp_location == "Officer Note" and DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].isOfficerNoteVisible then
+        local amount = GetDkpFromOtherNote(playerName)
+        if amount and amount ~= "" then
+            return "[DKP:" .. amount .. "]"
+        else
+            return ""
+        end
+    elseif DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName] and DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].dkp_location == "Public Note" then
         local amount = GetDkpFromOtherNote(playerName)
         if amount and amount ~= "" then
             return "[DKP:" .. amount .. "]"
