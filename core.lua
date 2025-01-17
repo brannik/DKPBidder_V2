@@ -13,7 +13,9 @@ DKP_ADDON_CORE.defaultConfig = {
         },
         isOfficerNoteVisible = false,
         showDkpInCharacterFrame = true,
-        smallFrame = false
+        smallFrame = false,
+        showOtherMemberDKPInRaidChat = false,
+        raidFrame = "raid"
     }
 }
 
@@ -138,32 +140,306 @@ function DKP_ADDON_CORE.UpdateRaidName()
         end
     end
 end
+
+
 DKP_ADDON_CORE.EVENT_FRAME:RegisterEvent("ADDON_LOADED")
 DKP_ADDON_CORE.EVENT_FRAME:RegisterEvent("GROUP_ROSTER_UPDATE")
 DKP_ADDON_CORE.EVENT_FRAME:RegisterEvent("PLAYER_LOGOUT")
 DKP_ADDON_CORE.EVENT_FRAME:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 
-DKP_ADDON_CORE.EVENT_FRAME:SetScript("OnEvent", function(self, event, arg1)
+local function IsGuildMember(sender)
+    if not IsInGuild() or not sender then
+        return false
+    end
+
+    -- Fetch the total number of guild members
+    for i = 1, GetNumGuildMembers(true) do
+        -- Get the name of the guild member
+        local guildMemberName = GetGuildRosterInfo(i)
+        -- Compare sender with the guild member's name
+        if guildMemberName and guildMemberName == sender then
+            return true
+        end
+    end
+    return false
+end
+
+local function GetClassColor(class,sender)
+    local classColor
+    local _, class = UnitClass(sender)
+    if class == "WARRIOR" then
+        classColor = "C79C6E"  -- Warrior color
+    elseif class == "PALADIN" then
+        classColor = "F58CBA"  -- Paladin color
+    elseif class == "HUNTER" then
+        classColor = "ABD473"  -- Hunter color
+    elseif class == "ROGUE" then
+        classColor = "FFF569"  -- Rogue color
+    elseif class == "PRIEST" then
+        classColor = "FFFFFF"  -- Priest color
+    elseif class == "DEATHKNIGHT" then
+        classColor = "C41E3A"  -- Death Knight color
+    elseif class == "SHAMAN" then
+        classColor = "0070DE"  -- Shaman color
+    elseif class == "MAGE" then
+        classColor = "69CCF0"  -- Mage color
+    elseif class == "WARLOCK" then
+        classColor = "9482C9"  -- Warlock color
+    elseif class == "MONK" then
+        classColor = "00FF96"  -- Monk color
+    elseif class == "DRUID" then
+        classColor = "FF7D0A"  -- Druid color
+    elseif class == "DEMONHUNTER" then
+        classColor = "A330C9"  -- Demon Hunter color
+    end
+    return classColor
+end
+local function setFontSize()
+    -- Access the default chat frame (e.g., SELECTED_CHAT_FRAME or a specific one)
+    local chatFrame = SELECTED_CHAT_FRAME
+
+    -- Set the font size to a custom value (e.g., 14)
+    if chatFrame then
+        chatFrame:SetFont("Fonts\\FRIZQT__.TTF", 14)
+    end
+end
+
+setFontSize()
+
+-- Define the text size and color at the top
+local textColor = "|cffBBBBBB"  -- Color for the message text (gray)
+local statusColor = "|cFFFF4800"  -- Color for the status (DND/AFK)
+local raidWarningColor = "|cFFFF4800"  -- Color for raid warning
+local raidLeaderColor = "|cFF8B4800"  -- Color for raid leader
+local raidMessageColor = "|cFFFF7F00"  -- Color for regular raid message
+
+local function createWhisperLink(playerName)
+    -- Create a whisper link with just [W] in front of the player name, in the player's class color
+    local _, class = UnitClass(playerName)
+    local classColor = GetClassColor(class, playerName)
+
+    -- If class color is not found, use a default color (white)
+    if not classColor or classColor == nil then
+        classColor = "FFFFFF"
+    end
+    return string.format("|cff%s|Hplayer:%s|h[%s]|h|r", classColor, playerName,playerName)  -- Clickable [W] link in the player's class color
+end
+
+local function addItemLinkTooltip(msg)
+    -- Search for item links in the message and apply the hover tooltip
+    -- Item links are in the form |Hitem:ID|h[Item Name]|h|r
+    return msg:gsub("|Hitem:.-|h%[.-%]|h|r", function(itemLink)
+        -- Wrap item link to ensure tooltips appear when hovered over
+        return string.format("|cff00ff00%s|r", itemLink)  -- Green color for items (You can change the color)
+    end)
+end
+local function GetPlayerDKP(playerName)
+    if DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName] and DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].isOfficerNoteVisible then
+        local amount = GetDkpFromOtherNote(playerName)
+        if amount and amount ~= "" then
+            return "[DKP:" .. amount .. "]"
+        else
+            return ""
+        end
+    else
+        return ""
+    end
+end
+
+local function sendMessageToTab(tabName, message)
+    -- Loop through all chat tabs to find the matching tab by name
+    for i = 1, NUM_CHAT_WINDOWS do
+        local chatTabName = _G["ChatFrame" .. i .. "Tab"]:GetText()
+        
+        -- If the tab name matches the one specified, send the message to that chat frame
+        if chatTabName == tabName then
+            local chatFrame = _G["ChatFrame" .. i]
+            if chatFrame then
+                chatFrame:AddMessage(message)
+            end
+            break
+        end
+    end
+end
+
+-- Define the icon paths
+--local raidIcon = "Interface\\AddOns\\DKPBidder_V2\\media\\chat\\raidIcon.blp"
+--local raidLeaderIcon = "Interface\\AddOns\\DKPBidder_V2\\media\\chat\\raidLeaderIcon.blp"
+--local raidWarningIcon = "Interface\\AddOns\\DKPBidder_V2\\media\\chat\\raidWarningIcon.blp"
+local raidIcon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_1.blp"
+local raidLeaderIcon = "Interface\\GroupFrame\\UI-Group-LeaderIcon.blp"
+local raidWarningIcon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_8.blp" -- skull
+
+local function raidMessage(self, event, msg, author, ...)
+    -- Ensure author is valid
+    if not author or author == "" then
+        return false
+    end
+
+    -- Get the name of the raid frame tab
+    local raidFrameTabName = DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName] and DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].raidFrame or "raid"
+
+    -- Check if the player is DND or AFK
+    local playerStatus = ""
+    if UnitIsDND(author) then
+        playerStatus = statusColor .. "[DND]|r"  -- Red color for DND
+    elseif UnitIsAFK(author) then
+        playerStatus = "|cFF888888[AFK]|r"  -- Gray color for AFK
+    end
+
+    -- Format the message with the player's status (DND/AFK)
+    if playerStatus and author then
+        local whisperLink = createWhisperLink(author)
+        local dkpAmount = GetPlayerDKP(author)
+        -- Add item link tooltip functionality
+        local formattedMessage = string.format("%s|T%s:16|t%s%s|cffFF8000%s|r: %s%s", 
+            raidMessageColor,
+            raidIcon,  -- Icon for raid
+            playerStatus,
+            whisperLink,  -- 
+            dkpAmount,
+            textColor,
+            addItemLinkTooltip(msg)  -- Add the hover tooltip for item links
+        )
+
+        -- Send the formatted message to the raid tab
+        sendMessageToTab(raidFrameTabName, formattedMessage)
+
+        -- Suppress the original message in all frames (return true to stop further processing)
+        return true
+    end
+
+    -- If we reach here, return false as no valid message was processed
+    return false
+end
+
+local function raidLeader(self, event, msg, author, ...)
+    -- Ensure author is valid
+    if not author or author == "" then
+        return false
+    end
+
+    -- Get the name of the raid frame tab
+    local raidFrameTabName = DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName] and DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].raidFrame or "raid"
+
+    -- Check if the player is DND or AFK
+    local playerStatus = ""
+    if UnitIsDND(author) then
+        playerStatus = statusColor .. "[DND]|r"  -- Red color for DND
+    elseif UnitIsAFK(author) then
+        playerStatus = "|cFF888888[AFK]|r"  -- Gray color for AFK
+    end
+
+    -- Format the message with the player's status (DND/AFK)
+    if playerStatus and author then
+        local whisperLink = createWhisperLink(author)
+        local dkpAmount = GetPlayerDKP(author)
+        -- Add item link tooltip functionality
+        local formattedMessage = string.format("%s|T%s:16|t%s%s|cffFF8000%s|r: %s%s", 
+            raidLeaderColor,
+            raidLeaderIcon,  -- Icon for raid leader
+            playerStatus,
+            whisperLink,  
+            dkpAmount,
+            textColor,
+            addItemLinkTooltip(msg)  -- Add the hover tooltip for item links
+        )
+
+        -- Send the formatted message to the raid tab
+        sendMessageToTab(raidFrameTabName, formattedMessage)
+
+        -- Suppress the original message in all frames (return true to stop further processing)
+        return true
+    end
+
+    -- If we reach here, return false as no valid message was processed
+    return false
+end
+
+local function raidWarning(self, event, msg, author, ...)
+    -- Ensure author is valid
+    if not author or author == "" then
+        return false
+    end
+
+    -- Get the name of the raid frame tab
+    local raidFrameTabName = DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName] and DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].raidFrame or "raid"
+
+    -- Check if the player is DND or AFK
+    local playerStatus = ""
+    if UnitIsDND(author) then
+        playerStatus = statusColor .. "[DND]|r"  -- Red color for DND
+    elseif UnitIsAFK(author) then
+        playerStatus = "|cFF888888[AFK]|r"  -- Gray color for AFK
+    end
+
+    -- Format the message with the player's status (DND/AFK)
+    if playerStatus and author then
+        local whisperLink = createWhisperLink(author)
+        local dkpAmount = GetPlayerDKP(author)
+        -- Add item link tooltip functionality
+        local formattedMessage = string.format("%s|T%s:16|t%s%s|cffFF8000%s|r: %s%s", 
+            raidWarningColor,
+            raidWarningIcon,  -- Icon for raid warning
+            playerStatus,
+            whisperLink,  
+            dkpAmount,
+            textColor,
+            addItemLinkTooltip(msg)  -- Add the hover tooltip for item links
+        )
+
+        -- Send the formatted message to the raid tab
+        sendMessageToTab(raidFrameTabName, formattedMessage)
+
+        -- Suppress the original message in all frames (return true to stop further processing)
+        return true
+    end
+
+    -- If we reach here, return false as no valid message was processed
+    return false
+end
+
+function DKP_ADDON_CORE.registerFilters()
+    -- Register filters for raid chat events
+    ChatFrame_AddMessageEventFilter("CHAT_MSG_RAID", raidMessage)
+    ChatFrame_AddMessageEventFilter("CHAT_MSG_RAID_LEADER", raidLeader)
+    ChatFrame_AddMessageEventFilter("CHAT_MSG_RAID_WARNING", raidWarning)
+end
+
+function DKP_ADDON_CORE.unregisterFilters()
+    -- Unregister filters for raid chat events
+    ChatFrame_RemoveMessageEventFilter("CHAT_MSG_RAID", raidMessage)
+    ChatFrame_RemoveMessageEventFilter("CHAT_MSG_RAID_LEADER", raidLeader)
+    ChatFrame_RemoveMessageEventFilter("CHAT_MSG_RAID_WARNING", raidWarning)
+end
+
+-- Function to check and apply the filters based on config setting
+function DKP_ADDON_CORE.updateFilters()
+    -- Check if the config setting allows showing DKP in raid chat
+    if DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName] and DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].showOtherMemberDKPInRaidChat then
+        -- Register the filters if enabled
+        DKP_ADDON_CORE.registerFilters()
+    else
+        -- Unregister the filters if disabled
+        DKP_ADDON_CORE.unregisterFilters()
+    end
+end
+
+
+-- Main event handler function
+local function EventHandler(self, event, arg1, arg2, ...)
     if event == "PLAYER_LOGOUT" then
         DKP_ADDON_CORE.SaveRaidHistory()
-    elseif event == "ADDON_LOADED" and arg1 == "DKPBidder_V2" then  -- Replace with your addon name
 
-        DKP_ADDON_CORE.EVENT_FRAME:RegisterEvent("CHAT_MSG_WHISPER")
-        DKP_ADDON_CORE.EVENT_FRAME:SetScript("OnEvent", function(self, event, message, sender)
-            if event == "CHAT_MSG_WHISPER" then
-                local number = string.match(message, REGEX.regex.msgregexTwo)
-                if number then
-                    DKP_ADDON_CORE.DkpAmount = number
-                    CHAR_FRAME.UpdateText(DKP_ADDON_CORE.DkpAmount)
-                    if DKP_BID_UI.frameVisible then
-                        DKP_BID_UI.UpdateUI()
-                    end
-                else
-                    print("regex error")
-                end
-            end
-        end)
+    elseif event == "ADDON_LOADED" and arg1 == "DKPBidder_V2" then
+        -- Register chat-related events once
+        self:RegisterEvent("CHAT_MSG_WHISPER")
+        self:RegisterEvent("CHAT_MSG_RAID_WARNING")
+        self:RegisterEvent("CHAT_MSG_RAID")
+        self:RegisterEvent("CHAT_MSG_RAID_LEADER")
+        self:RegisterEvent("CHAT_MSG_SAY")
 
+        -- Perform delayed setup for the addon
         DelayedExecution(2, function()
             local guildName = GetGuildInfo("player")
             DKP_ADDON_CORE.guildName = guildName
@@ -174,12 +450,36 @@ DKP_ADDON_CORE.EVENT_FRAME:SetScript("OnEvent", function(self, event, arg1)
             DKP_ADDON_CORE.LoadRaidHistory()
             CHAR_FRAME.UpdateText(DKP_ADDON_CORE.DkpAmount)
         end)
-    elseif event == "GROUP_ROSTER_UPDATE" then
-        DKP_ADDON_CORE.HandleRaidChange()
-    elseif event == "ZONE_CHANGED_NEW_AREA" then
-        DKP_ADDON_CORE.UpdateRaidName()
+
+        if event == "CHAT_MSG_WHISPER" then
+            -- Handle whispers with regex
+            local message = arg1
+            local sender = arg2
+            local number = string.match(message, REGEX.regex.msgregexTwo)
+            if number then
+                DKP_ADDON_CORE.DkpAmount = number
+                CHAR_FRAME.UpdateText(DKP_ADDON_CORE.DkpAmount)
+                if DKP_BID_UI.frameVisible then
+                    DKP_BID_UI.UpdateUI()
+                end
+            else
+                print("regex error")
+            end
+    
+        elseif event == "GROUP_ROSTER_UPDATE" then
+            DKP_ADDON_CORE.HandleRaidChange()
+    
+        elseif event == "ZONE_CHANGED_NEW_AREA" then
+            DKP_ADDON_CORE.UpdateRaidName()
+        elseif event == "CHAT_MSG_RAID" then
+
+        end
     end
-end)
+    
+end
+
+-- Assign the event handler to the event frame
+DKP_ADDON_CORE.EVENT_FRAME:SetScript("OnEvent", EventHandler)
 
 function DKP_ADDON_CORE.LoadConfig()
     if not DKP_ADDON_CORE.guildName then
@@ -200,6 +500,7 @@ function DKP_ADDON_CORE.LoadConfig()
     end
 
     print("Configuration loaded for guild:", DKP_ADDON_CORE.guildName)
+    DKP_ADDON_CORE.updateFilters()
 end
 
 function DKP_ADDON_CORE.SaveConfig()
@@ -282,7 +583,7 @@ end
 
 function GetDkpFromNote(note)
     -- Check if the note matches the name regex
-    if string.match(note, DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].noteRegexName) then
+    if string.match(note, REGEX.regex.noteRegexName) then
         for i = 1, GetNumGuildMembers(true) do
             local name, _, _, _, _, _, publicNote, officerNote = GetGuildRosterInfo(i)
             
@@ -290,16 +591,16 @@ function GetDkpFromNote(note)
             if name == note then
                 -- Check if DKP is in Public Note
                 if DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].dkp_location == "Public Note" then
-                    if string.match(publicNote, DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].noteRegexDkp) then
-                        DKP_ADDON_CORE.DkpAmount = tonumber(string.match(publicNote, DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].noteRegexDkp))
+                    if string.match(publicNote, REGEX.regex.noteRegexDkp) then
+                        DKP_ADDON_CORE.DkpAmount = tonumber(string.match(publicNote, REGEX.regex.noteRegexDkp))
                     else
                         DKP_ADDON_CORE.DkpAmount = 0
                     end
                     
                 -- Check if DKP is in Officer Note
                 elseif DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].dkp_location == "Officer Note" then
-                    if string.match(officerNote, DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].noteRegexDkp) then
-                        DKP_ADDON_CORE.DkpAmount = tonumber(string.match(officerNote, DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].noteRegexDkp))
+                    if string.match(officerNote, REGEX.regex.noteRegexDkp) then
+                        DKP_ADDON_CORE.DkpAmount = tonumber(string.match(officerNote, REGEX.regex.noteRegexDkp))
                     else
                         DKP_ADDON_CORE.DkpAmount = 0
                     end
@@ -309,8 +610,8 @@ function GetDkpFromNote(note)
         end
     else
         -- If no name regex match, match DKP in the note directly
-        if string.match(note, DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].noteRegexDkp) then
-            DKP_ADDON_CORE.DkpAmount = tonumber(string.match(note, DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].noteRegexDkp))
+        if string.match(note, REGEX.regex.noteRegexDkp) then
+            DKP_ADDON_CORE.DkpAmount = tonumber(string.match(note, REGEX.regex.noteRegexDkp))
         else
             DKP_ADDON_CORE.DkpAmount = 0
         end
@@ -320,6 +621,65 @@ function GetDkpFromNote(note)
     
 end
 
+function GetDkpFromOtherNote(note2)
+    -- Check if the note matches the name regex
+    if string.match(note2, REGEX.regex.noteRegexName) then
+        for i = 1, GetNumGuildMembers(true) do
+            local name, _, _, _, _, _, publicNote, officerNote = GetGuildRosterInfo(i)
+            
+            -- Match the player's note with the given player's note
+            if name == note2 then
+                -- Check if DKP is in Public Note
+                if DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].dkp_location == "Public Note" then
+                    if string.match(publicNote, REGEX.regex.noteRegexDkp) then
+                        return string.match(publicNote, REGEX.regex.noteRegexDkp)
+                    else
+                        return ""
+                    end
+                    
+                -- Check if DKP is in Officer Note
+                elseif DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].dkp_location == "Officer Note" then
+                    if string.match(officerNote, REGEX.regex.noteRegexDkp) then
+                        return string.match(officerNote, REGEX.regex.noteRegexDkp)
+                    else
+                        return ""
+                    end
+                end
+            end
+        end
+    else
+        -- If no name regex match, match DKP in the note directly
+        if string.match(note2, REGEX.regex.noteRegexDkp) then
+            return string.match(note, REGEX.regex.noteRegexDkp)
+        else
+            return ""
+        end
+    end
+end
+function DKP_ADDON_CORE.GetOtherPlayerDKP(playerName)
+    if DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].dkp_location == "Public Note" then
+        for i = 1, GetNumGuildMembers() do
+            local name, _, _, _, _, _, publicNote, officerNote = GetGuildRosterInfo(i)
+            if name == playerName then
+                local note = GetDkpFromOtherNote(publicNote)
+                GetPlayerDKP(note)
+                break
+            end
+        end
+    end
+    if DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].dkp_location == "Officer Note" then
+        if DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].isOfficerNoteVisible then
+            for i = 1, GetNumGuildMembers() do
+                local name, _, _, _, _, _, publicNote, officerNote = GetGuildRosterInfo(i)
+                if name == playerName then
+                    local note = GetDkpFromOtherNote(officerNote)
+                    GetPlayerDKP(note)
+                    break
+                end
+            end
+        end
+    end
+end
 function DKP_ADDON_CORE.GatherDKP(manualCheck)
     local manual = manualCheck or false
     if not IsInGuild() then
@@ -535,3 +895,5 @@ function DKP_ADDON_CORE.AddPlayerLeave(playerName)
         print("Error: No active raid to add a leave log to.")
     end
 end
+
+DKP_ADDON_CORE.LoadConfig()

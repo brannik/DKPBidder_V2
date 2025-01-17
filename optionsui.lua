@@ -162,13 +162,13 @@ local function initializeDropdown1(self, level)
     end
     local info = UIDropDownMenu_CreateInfo()
     info.text = "Officer Note"
-    info.value = "OfficerNote"
+    info.value = "Officer Note"
     info.func = OnClickDropdown1
     info.checked = (DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].dkp_location == "OfficerNote")
     UIDropDownMenu_AddButton(info, level)
     
     info.text = "Public Note"
-    info.value = "PublicNote"
+    info.value = "Public Note"
     info.func = OnClickDropdown1
     info.checked = (DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].dkp_location == "PublicNote")
     UIDropDownMenu_AddButton(info, level)
@@ -267,30 +267,72 @@ bidAmountTitle:SetPoint("TOP", dropdown, "BOTTOM", 0, -10)
 bidAmountTitle:SetText("Bid Amount")
 
 local bidAmountEditBox = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
-bidAmountEditBox:SetSize(200, 20)
+bidAmountEditBox:SetSize(100, 25)
 bidAmountEditBox:SetPoint("TOP", bidAmountTitle, "BOTTOM", 0, -5)
 bidAmountEditBox:SetAutoFocus(false)
 bidAmountEditBox:SetText(DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName] and DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].minDkpBid or "10")
+bidAmountEditBox:SetJustifyH("CENTER") 
 bidAmountEditBox:SetBackdrop({
-    bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
-    edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+    bgFile = "Interface\\ChatFrame\\ChatFrameBackground",  -- Background texture
+    edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",  -- Border texture
     tile = true,
     tileSize = 16,
-    edgeSize = 16,
-    insets = { left = 4, right = 4, top = 4, bottom = 4 }
+    edgeSize = 16,  -- Border size, adjusted back to 16 for better alignment
+    insets = { left = 0, right = 0, top = 0, bottom = 0 }  -- Remove internal inset to prevent double borders
 })
-bidAmountEditBox:SetBackdropColor(0, 0, 0, 1)
+
+-- Set the background and border color
+bidAmountEditBox:SetBackdropColor(0, 0, 0, 1)  -- Black background
+bidAmountEditBox:SetBackdropBorderColor(0.8, 0.8, 0.8)  -- Light gray border
+
+-- Remove internal borders by adjusting the EditBox's internal settings
+bidAmountEditBox:SetTextInsets(5, 5, 5, 5) 
 
 local officerNoteHidden = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
-officerNoteHidden:SetPoint("TOP", bidAmountEditBox, "BOTTOM", -60, -10)
+officerNoteHidden:SetPoint("TOP", bidAmountEditBox, "BOTTOM", -100, 0)
 officerNoteHidden:SetChecked(DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName] and DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].isOfficerNoteVisible)
 
 local officerNoteLabel = officerNoteHidden:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 officerNoteLabel:SetPoint("LEFT", officerNoteHidden, "RIGHT", 5, 0)  -- Position it to the right of the checkbox
 officerNoteLabel:SetText("Officer note visible?")  -- The text of the label
 
+-- show other member dkp amount in the raid chat - works only if officernote is visible
+local otherMemberDKPFrame = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
+otherMemberDKPFrame:SetPoint("TOP", officerNoteHidden, "BOTTOM", 50, 10)
+otherMemberDKPFrame:SetChecked(DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName] and DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].showOtherMemberDKPInRaidChat)
+
+local otherMemberDKPLabel = otherMemberDKPFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+otherMemberDKPLabel:SetPoint("LEFT", otherMemberDKPFrame, "RIGHT", 5, 0)  -- Position it to the right of the checkbox
+otherMemberDKPLabel:SetText("Use custom raid chat?")  -- The text of the label
+
+local chatFrameForRaids = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+chatFrameForRaids:SetPoint("TOP", otherMemberDKPLabel, "BOTTOM", -30, -10)
+chatFrameForRaids:SetText("Raid chat tab")
+
+local chatFrameForRaidsEditBox = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
+chatFrameForRaidsEditBox:SetSize(100, 25)
+chatFrameForRaidsEditBox:SetPoint("TOP", chatFrameForRaids, "BOTTOM", 0, -5)
+chatFrameForRaidsEditBox:SetAutoFocus(false)
+chatFrameForRaidsEditBox:SetText(DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName] and DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].raidFrame or "raid")
+chatFrameForRaidsEditBox:SetJustifyH("CENTER") 
+chatFrameForRaidsEditBox:SetBackdrop({
+    bgFile = "Interface\\ChatFrame\\ChatFrameBackground",  -- Background texture
+    edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",  -- Border texture
+    tile = true,
+    tileSize = 16,
+    edgeSize = 16,  -- Border size, adjusted back to 16 for better alignment
+    insets = { left = 0, right = 0, top = 0, bottom = 0 }  -- Remove internal inset to prevent double borders
+})
+
+-- Set the background and border color
+chatFrameForRaidsEditBox:SetBackdropColor(0, 0, 0, 1)  -- Black background
+chatFrameForRaidsEditBox:SetBackdropBorderColor(0.8, 0.8, 0.8)  -- Light gray border
+
+-- Remove internal borders by adjusting the EditBox's internal settings
+chatFrameForRaidsEditBox:SetTextInsets(5, 5, 5, 5) 
+
 local showDkpInCharFrame = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
-showDkpInCharFrame:SetPoint("TOP", officerNoteHidden, "BOTTOM", -15, -10)
+showDkpInCharFrame:SetPoint("TOP", chatFrameForRaidsEditBox, "BOTTOM", -90, 0)
 showDkpInCharFrame:SetChecked(DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName] and DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].showDkpInCharacterFrame)
 
 local showDkpInCharFrameLabel = showDkpInCharFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -298,12 +340,24 @@ showDkpInCharFrameLabel:SetPoint("LEFT", showDkpInCharFrame, "RIGHT", 5, 0)  -- 
 showDkpInCharFrameLabel:SetText("Show DKP in char frame")  -- The text of the label
 
 local smallFrame = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
-smallFrame:SetPoint("TOP", showDkpInCharFrame, "BOTTOM", 60, 15)
+smallFrame:SetPoint("TOP", showDkpInCharFrameLabel, "BOTTOM", -50, 0)
 smallFrame:SetChecked(DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName] and DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].smallFrame)
 
 local smallFrameLabel = smallFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 smallFrameLabel:SetPoint("LEFT", smallFrame, "RIGHT", 5, 0)  -- Position it to the right of the checkbox
 smallFrameLabel:SetText("Small?")  -- The text of the label
+
+officerNoteHidden:SetScript("OnClick",function()
+    if officerNoteHidden:GetChecked() then
+        otherMemberDKPFrame:Enable()
+        chatFrameForRaidsEditBox:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)  -- Re-enable typing
+        chatFrameForRaidsEditBox:SetFocus()  -- Set focus back to the EditBox
+    else
+        otherMemberDKPFrame:Disable()
+        chatFrameForRaidsEditBox:ClearFocus()  -- Removes focus from the EditBox, preventing input
+        chatFrameForRaidsEditBox:SetScript("OnEditFocusGained", function() return true end)  
+    end
+end)
 
 showDkpInCharFrame:SetScript("OnClick", function()
     if showDkpInCharFrame:GetChecked() then
@@ -312,6 +366,11 @@ showDkpInCharFrame:SetScript("OnClick", function()
         smallFrame:Disable()
     end
 end)
+
+otherMemberDKPFrame:SetScript("OnClick",function()
+    DKP_ADDON_CORE.updateFilters()
+end)
+
 local wipeButton = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
 wipeButton:SetPoint("BOTTOM", frame, "BOTTOM", -50,20)
 wipeButton:SetSize(100, 25)
@@ -349,10 +408,16 @@ saveButton:SetScript("OnClick", function()
 
     DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].isOfficerNoteVisible = officerNoteHidden:GetChecked()  -- Get checkbox state
     DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].minDkpBid = tonumber(bidAmountEditBox:GetText()) or 10  -- Get bid amount
+
+    DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].raidFrame = tonumber(chatFrameForRaidsEditBox:GetText()) or "raid"  -- Get bid amount
+
+
     DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].showDkpInCharacterFrame = showDkpInCharFrame:GetChecked()  -- Get checkbox state
     DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].smallFrame = smallFrame:GetChecked()  -- Get checkbox state
+    DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].showOtherMemberDKPInRaidChat = otherMemberDKPFrame:GetChecked()  -- Get checkbox state
     
     DKP_ADDON_CORE.SaveConfig()
+    ReloadUI()
 end)
 
 function DKP_OPTIONS_UI.Show()
@@ -361,6 +426,9 @@ function DKP_OPTIONS_UI.Show()
     UIDropDownMenu_SetText(dropdown1, DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].dkp_location)
     updateDropdownText()
     bidAmountEditBox:SetText(DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].minDkpBid or '10')
+
+    chatFrameForRaidsEditBox:SetText(DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].raidFrame or "raid")
+
     officerNoteHidden:SetChecked(DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].isOfficerNoteVisible or false)
     showDkpInCharFrame:SetChecked(DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].showDkpInCharacterFrame or false)
     if DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].showDkpInCharacterFrame then
@@ -368,6 +436,16 @@ function DKP_OPTIONS_UI.Show()
     else
         smallFrame:Disable()
     end
+    if DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].isOfficerNoteVisible then
+        otherMemberDKPFrame:Enable()
+        chatFrameForRaidsEditBox:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)  -- Re-enable typing
+        chatFrameForRaidsEditBox:SetFocus()  -- Set focus back to the EditBox
+    else
+        otherMemberDKPFrame:Disable()
+        chatFrameForRaidsEditBox:ClearFocus()  -- Removes focus from the EditBox, preventing input
+        chatFrameForRaidsEditBox:SetScript("OnEditFocusGained", function() return true end)  
+    end
+    otherMemberDKPFrame:SetChecked(DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].showOtherMemberDKPInRaidChat or false)
     smallFrame:SetChecked(DKP_ADDON_CORE.config[DKP_ADDON_CORE.guildName].smallFrame or false)
     guildNameString:SetText("Config: " .. DKP_ADDON_CORE.guildName)
     frame:Show()

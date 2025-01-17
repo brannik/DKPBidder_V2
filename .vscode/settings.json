@@ -30,10 +30,15 @@
         "message",
         "ADD",
         "ROLL",
-        "DK"
+        "DK",
+        "DEFAULT_CHAT_FRAME",
+        "ChatFrame_AddMessageEventFilter",
+        "GetNumRaidMembers"
     ],
     "Lua.diagnostics.disable": [
         "param-type-mismatch",
-        "deprecated"
+        "deprecated",
+        "undefined-global",
+        "undefined-field"
     ]
 }
